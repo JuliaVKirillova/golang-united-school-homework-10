@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -20,6 +21,40 @@ main function reads host/port from env just for an example, flavor it following 
 // Start /** Starts the web server listener on given host and port.
 func Start(host string, port int) {
 	router := mux.NewRouter()
+
+	router.HandleFunc("/name/{PARAM}", func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		_, err := w.Write([]byte("Hello, " + vars["PARAM"] + "!"))
+		if err != nil {
+			return
+		}
+	}).Methods("GET")
+
+	router.HandleFunc("/bad", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}).Methods("GET")
+
+	router.HandleFunc("/data", func(w http.ResponseWriter, r *http.Request) {
+		param, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			return
+		}
+
+		defer r.Body.Close()
+
+		_, err = w.Write([]byte("I got message:\n" + string(param)))
+		if err != nil {
+			return
+		}
+	}).Methods("POST")
+
+	router.HandleFunc("/headers", func(w http.ResponseWriter, r *http.Request) {
+		a := r.Header.Get("A")
+		aNum, _ := strconv.Atoi(a)
+		b := r.Header.Get("B")
+		bNum, _ := strconv.Atoi(b)
+		w.Header().Set("a+b", strconv.Itoa(aNum+bNum))
+	}).Methods("POST")
 
 	log.Println(fmt.Printf("Starting API server on %s:%d\n", host, port))
 	if err := http.ListenAndServe(fmt.Sprintf("%s:%d", host, port), router); err != nil {
